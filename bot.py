@@ -24,7 +24,6 @@ def run_web_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     server.serve_forever()
 
-# Start web server in the background to prevent Render timeouts
 threading.Thread(target=run_web_server, daemon=True).start()
 # ------------------------------------
 
@@ -75,54 +74,72 @@ class BugReportModal(discord.ui.Modal):
             "✅ Your report has been successfully recorded! Thank you.", ephemeral=True
         )
 
-class ProductSelect(discord.ui.Select):
-    def __init__(self, products, page=0):
-        self.products = products
-        self.page = page
-        
-        start = page * 25
-        end = start + 25
-        page_products = products[start:end]
-
-        options = [discord.SelectOption(label=p[:100], value=p[:100]) for p in page_products]
-        super().__init__(placeholder=f"Select product (Page {page+1})...", min_values=1, max_values=1, options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        modal = BugReportModal(self.values[0])
-        await interaction.response.send_modal(modal)
-
 class ProductSelectView(discord.ui.View):
-    def __init__(self, products):
+    def __init__(self, products, current_page=0):
         super().__init__(timeout=None)
         self.products = products
-        self.current_page = 0
-        self.max_pages = (len(products) - 1) // 25
-        self.update_components()
-
-    def update_components(self):
-        self.clear_items()
-        self.add_item(ProductSelect(self.products, self.current_page))
+        self.current_page = current_page
+        self.max_pages = max(0, (len(products) - 1) // 25)
         
+        self.setup_components()
+
+    def setup_components(self):
+        self.clear_items()
+        
+        start = self.current_page * 25
+        end = start + 25
+        page_products = self.products[start:end]
+
+        options = [discord.SelectOption(label=p[:100], value=p[:100]) for p in page_products]
+        
+        # Dropdown Menu
+        select = discord.ui.Select(
+            placeholder=f"Select product (Page {self.current_page + 1}/{self.max_pages + 1})...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id=f"product_select_{self.current_page}"
+        )
+        select.callback = self.select_callback
+        self.add_item(select)
+
+        # Pagination Buttons
         if self.max_pages > 0:
-            prev_button = discord.ui.Button(label="⬅️ Previous", style=discord.ButtonStyle.secondary, disabled=(self.current_page == 0))
-            prev_button.callback = self.prev_page_callback
+            prev_button = discord.ui.Button(
+                label="⬅️ Previous",
+                style=discord.ButtonStyle.secondary,
+                disabled=(self.current_page == 0),
+                custom_id="prev_page"
+            )
+            prev_button.callback = self.prev_callback
             self.add_item(prev_button)
 
-            next_button = discord.ui.Button(label="Next ➡️", style=discord.ButtonStyle.secondary, disabled=(self.current_page == self.max_pages))
-            next_button.callback = self.next_page_callback
+            next_button = discord.ui.Button(
+                label="Next ➡️",
+                style=discord.ButtonStyle.secondary,
+                disabled=(self.current_page == self.max_pages),
+                custom_id="next_page"
+            )
+            next_button.callback = self.next_callback
             self.add_item(next_button)
 
-    async def prev_page_callback(self, interaction: discord.Interaction):
+    async def select_callback(self, interaction: discord.Interaction):
+        modal = BugReportModal(interaction.data["values"][0])
+        await interaction.response.send_modal(modal)
+
+    async def prev_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         if self.current_page > 0:
             self.current_page -= 1
-            self.update_components()
-            await interaction.response.edit_message(view=self)
+            self.setup_components()
+            await interaction.message.edit(view=self)
 
-    async def next_page_callback(self, interaction: discord.Interaction):
+    async def next_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         if self.current_page < self.max_pages:
             self.current_page += 1
-            self.update_components()
-            await interaction.response.edit_message(view=self)
+            self.setup_components()
+            await interaction.message.edit(view=self)
 
 @bot.command(name="setup_menu")
 @commands.has_permissions(administrator=True)
