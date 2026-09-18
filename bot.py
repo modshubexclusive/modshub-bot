@@ -12,7 +12,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# --- ΜΙΚΡΟΣ WEB SERVER ΓΙΑ ΤΟ RENDER ---
+# --- SIMPLE WEB SERVER FOR RENDER ---
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -24,30 +24,30 @@ def run_web_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     server.serve_forever()
 
-# Ξεκινάμε τον web server στο παρασκήνιο για να μην κόβει το Render
+# Start web server in the background to prevent Render timeouts
 threading.Thread(target=run_web_server, daemon=True).start()
-# ----------------------------------------
+# ------------------------------------
 
 def load_products():
     if not os.path.exists(PRODUCTS_FILE):
-        return ["Γενικό Bug / Πρόβλημα"]
+        return ["General Bug / Issue"]
     with open(PRODUCTS_FILE, "r", encoding="utf-8") as f:
         products = [line.strip() for line in f if line.strip()]
-    return products if products else ["Γενικό Bug / Πρόβλημα"]
+    return products if products else ["General Bug / Issue"]
 
 class BugReportModal(discord.ui.Modal):
     def __init__(self, product_name: str):
-        super().__init__(title=f"Αναφορά για: {product_name[:40]}")
+        super().__init__(title=f"Report for: {product_name[:40]}")
         self.product_name = product_name
 
         self.issue_type = discord.ui.TextInput(
-            label="Είδος Αναφοράς",
-            placeholder="Bug / Σφάλμα ή Πρόταση/Αίτημα;",
+            label="Issue Type",
+            placeholder="Bug / Error or Suggestion / Request?",
             required=True
         )
         self.description = discord.ui.TextInput(
-            label="Περιγραφή",
-            placeholder="Περιέγραψε αναλυτικά το πρόβλημα...",
+            label="Description",
+            placeholder="Describe the issue in detail...",
             style=discord.TextStyle.paragraph,
             required=True
         )
@@ -61,10 +61,10 @@ class BugReportModal(discord.ui.Modal):
         file_path = os.path.join(REPORTS_DIR, f"{safe_name}.md")
 
         report_content = (
-            f"# Προϊόν: {self.product_name}\n"
-            f"**Χρήστης:** {interaction.user} (ID: {interaction.user.id})\n"
-            f"**Τύπος:** {self.issue_type.value}\n"
-            f"**Περιγραφή:**\n{self.description.value}\n\n"
+            f"# Product: {self.product_name}\n"
+            f"**User:** {interaction.user} (ID: {interaction.user.id})\n"
+            f"**Type:** {self.issue_type.value}\n"
+            f"**Description:**\n{self.description.value}\n\n"
             "---\n"
         )
 
@@ -72,7 +72,7 @@ class BugReportModal(discord.ui.Modal):
             f.write(report_content)
 
         await interaction.response.send_message(
-            "✅ Η αναφορά σου καταγράφηκε επιτυχώς! Σε ευχαριστούμε.", ephemeral=True
+            "✅ Your report has been successfully recorded! Thank you.", ephemeral=True
         )
 
 class ProductSelect(discord.ui.Select):
@@ -85,7 +85,7 @@ class ProductSelect(discord.ui.Select):
         page_products = products[start:end]
 
         options = [discord.SelectOption(label=p[:100], value=p[:100]) for p in page_products]
-        super().__init__(placeholder=f"Επίλεξε προϊόν (Σελίδα {page+1})...", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder=f"Select product (Page {page+1})...", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         modal = BugReportModal(self.values[0])
@@ -104,11 +104,11 @@ class ProductSelectView(discord.ui.View):
         self.add_item(ProductSelect(self.products, self.current_page))
         
         if self.max_pages > 0:
-            prev_button = discord.ui.Button(label="⬅️ Προηγούμενη", style=discord.ButtonStyle.secondary, disabled=(self.current_page == 0))
+            prev_button = discord.ui.Button(label="⬅️ Previous", style=discord.ButtonStyle.secondary, disabled=(self.current_page == 0))
             prev_button.callback = self.prev_page_callback
             self.add_item(prev_button)
 
-            next_button = discord.ui.Button(label="Επόμενη ➡️", style=discord.ButtonStyle.secondary, disabled=(self.current_page == self.max_pages))
+            next_button = discord.ui.Button(label="Next ➡️", style=discord.ButtonStyle.secondary, disabled=(self.current_page == self.max_pages))
             next_button.callback = self.next_page_callback
             self.add_item(next_button)
 
@@ -130,16 +130,16 @@ async def setup_menu(ctx):
     await ctx.message.delete()
     products = load_products()
     view = ProductSelectView(products)
-    await ctx.send("📋 **Σύστημα Αναφοράς Bugs & Αιτημάτων**\nΕπίλεξε το προϊόν σου από τη λίστα παρακάτω:", view=view)
+    await ctx.send("📋 **Bug & Request Reporting System**\nSelect your product from the list below:", view=view)
 
 @bot.command(name="get_reports")
 @commands.has_permissions(administrator=True)
 async def get_reports(ctx):
     if not os.path.exists(REPORTS_DIR) or not os.listdir(REPORTS_DIR):
-        await ctx.send("📂 Δεν υπάρχουν αποθηκευμένες αναφορές ακόμα.", delete_after=10)
+        await ctx.send("📂 No saved reports yet.", delete_after=10)
         return
     
-    await ctx.send("📂 Ακολουθούν τα αρχεία αναφορών:")
+    await ctx.send("📂 Here are the report files:")
     for file_name in os.listdir(REPORTS_DIR):
         file_path = os.path.join(REPORTS_DIR, file_name)
         if os.path.isfile(file_path):
