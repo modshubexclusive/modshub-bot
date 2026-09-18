@@ -2,7 +2,7 @@ import os
 import discord
 from discord.ext import commands
 
-TOKEN = "ΒΑΛΕ_ΕΔΩ_ΤΟ_BOT_TOKEN_ΣΟΥ"
+TOKEN = os.environ.get("TOKEN")
 PRODUCTS_FILE = "products.txt"
 REPORTS_DIR = "reports"
 
