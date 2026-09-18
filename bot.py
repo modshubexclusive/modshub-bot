@@ -36,7 +36,8 @@ def load_products():
 
 class BugReportModal(discord.ui.Modal):
     def __init__(self, product_name: str):
-        super().__init__(title=f"Report for: {product_name[:40]}")
+        # ΤΟ ΔΙΟΡΘΩΣΑΜΕ ΕΔΩ: Ο τίτλος περιορίζεται αυστηρά κάτω από 45 χαρακτήρες
+        super().__init__(title=f"Report: {product_name[:30]}")
         self.product_name = product_name
 
         self.issue_type = discord.ui.TextInput(
@@ -92,7 +93,6 @@ class ProductSelectView(discord.ui.View):
 
         options = [discord.SelectOption(label=p[:100], value=p[:100]) for p in page_products]
         
-        # Dropdown Menu
         select = discord.ui.Select(
             placeholder=f"Select product (Page {self.current_page + 1}/{self.max_pages + 1})...",
             min_values=1,
@@ -103,7 +103,6 @@ class ProductSelectView(discord.ui.View):
         select.callback = self.select_callback
         self.add_item(select)
 
-        # Pagination Buttons
         if self.max_pages > 0:
             prev_button = discord.ui.Button(
                 label="⬅️ Previous",
