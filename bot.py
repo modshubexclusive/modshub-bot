@@ -36,7 +36,6 @@ def load_products():
 
 class BugReportModal(discord.ui.Modal):
     def __init__(self, product_name: str):
-        # ΤΟ ΔΙΟΡΘΩΣΑΜΕ ΕΔΩ: Ο τίτλος περιορίζεται αυστηρά κάτω από 45 χαρακτήρες
         super().__init__(title=f"Report: {product_name[:30]}")
         self.product_name = product_name
 
@@ -70,6 +69,24 @@ class BugReportModal(discord.ui.Modal):
 
         with open(file_path, "a", encoding="utf-8") as f:
             f.write(report_content)
+
+        # --- ΑΥΤΟΜΑΤΗ ΑΠΟΣΤΟΛΗ ΣΤΟ ΚΑΝΑΛΙ LOGS ---
+        if interaction.guild:
+            # Ψάχνει να βρει κανάλι με όνομα "bug-logs" στον server
+            log_channel = discord.utils.get(interaction.guild.text_channels, name="bug-logs")
+            if log_channel:
+                embed = discord.Embed(
+                    title="🚨 New Bug Report / Request",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="Product", value=self.product_name, inline=False)
+                embed.add_field(name="User", value=f"{interaction.user.mention} (`{interaction.user}`)", inline=False)
+                embed.add_field(name="Type", value=self.issue_type.value, inline=False)
+                embed.add_field(name="Description", value=self.description.value, inline=False)
+                
+                # Στέλνει το Embed μαζί με το αρχείο .md για καβάτζα
+                await log_channel.send(embed=embed, file=discord.File(file_path))
+        # ------------------------------------------
 
         await interaction.response.send_message(
             "✅ Your report has been successfully recorded! Thank you.", ephemeral=True
@@ -152,7 +169,7 @@ async def setup_menu(ctx):
 @commands.has_permissions(administrator=True)
 async def get_reports(ctx):
     if not os.path.exists(REPORTS_DIR) or not os.listdir(REPORTS_DIR):
-        await ctx.send("📂 No saved reports yet.", delete_after=10)
+        ctx.send("📂 No saved reports yet.", delete_after=10)
         return
     
     await ctx.send("📂 Here are the report files:")
