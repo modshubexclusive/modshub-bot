@@ -72,7 +72,6 @@ class BugReportModal(discord.ui.Modal):
 
         # --- ΑΥΤΟΜΑΤΗ ΑΠΟΣΤΟΛΗ ΣΤΟ ΚΑΝΑΛΙ LOGS ---
         if interaction.guild:
-            # Ψάχνει να βρει κανάλι με όνομα "bug-logs" στον server
             log_channel = discord.utils.get(interaction.guild.text_channels, name="bug-logs")
             if log_channel:
                 embed = discord.Embed(
@@ -84,7 +83,6 @@ class BugReportModal(discord.ui.Modal):
                 embed.add_field(name="Type", value=self.issue_type.value, inline=False)
                 embed.add_field(name="Description", value=self.description.value, inline=False)
                 
-                # Στέλνει το Embed μαζί με το αρχείο .md για καβάτζα
                 await log_channel.send(embed=embed, file=discord.File(file_path))
         # ------------------------------------------
 
@@ -157,19 +155,30 @@ class ProductSelectView(discord.ui.View):
             self.setup_components()
             await interaction.message.edit(view=self)
 
-@bot.command(name="setup_menu")
-@commands.has_permissions(administrator=True)
-async def setup_menu(ctx):
-    await ctx.message.delete()
-    products = load_products()
-    view = ProductSelectView(products)
-    await ctx.send("📋 **Bug & Request Reporting System**\nSelect your product from the list below:", view=view)
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    
+    # --- ΑΥΤΟΜΑΤΗ ΑΠΟΣΤΟΛΗ ΜΕΝΟΥ ΣΤΟ BUG-LOGS ΜΕ ΤΗΝ ΕΚΚΙΝΗΣΗ ---
+    for guild in bot.guilds:
+        channel = discord.utils.get(guild.text_channels, name="bug-logs")
+        if channel:
+            products = load_products()
+            view = ProductSelectView(products)
+            try:
+                async for message in channel.history(limit=5):
+                    if message.author == bot.user:
+                        await message.delete()
+            except Exception:
+                pass
+            
+            await channel.send("📋 **Bug & Request Reporting System**\nSelect your product from the list below:", view=view)
 
 @bot.command(name="get_reports")
 @commands.has_permissions(administrator=True)
 async def get_reports(ctx):
     if not os.path.exists(REPORTS_DIR) or not os.listdir(REPORTS_DIR):
-        ctx.send("📂 No saved reports yet.", delete_after=10)
+        await ctx.send("📂 No saved reports yet.", delete_after=10)
         return
     
     await ctx.send("📂 Here are the report files:")
@@ -177,9 +186,5 @@ async def get_reports(ctx):
         file_path = os.path.join(REPORTS_DIR, file_name)
         if os.path.isfile(file_path):
             await ctx.send(file=discord.File(file_path))
-
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
 bot.run(TOKEN)
