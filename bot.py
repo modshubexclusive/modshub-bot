@@ -1,4 +1,6 @@
 import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import discord
 from discord.ext import commands
 
@@ -10,6 +12,22 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# --- ΜΙΚΡΟΣ WEB SERVER ΓΙΑ ΤΟ RENDER ---
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    server.serve_forever()
+
+# Ξεκινάμε τον web server στο παρασκήνιο για να μην κόβει το Render
+threading.Thread(target=run_web_server, daemon=True).start()
+# ----------------------------------------
+
 def load_products():
     if not os.path.exists(PRODUCTS_FILE):
         return ["Γενικό Bug / Πρόβλημα"]
@@ -19,7 +37,7 @@ def load_products():
 
 class BugReportModal(discord.ui.Modal):
     def __init__(self, product_name: str):
-        super().fit = super().__init__(title=f"Αναφορά για: {product_name[:40]}")
+        super().__init__(title=f"Αναφορά για: {product_name[:40]}")
         self.product_name = product_name
 
         self.issue_type = discord.ui.TextInput(
@@ -37,7 +55,7 @@ class BugReportModal(discord.ui.Modal):
         self.add_item(self.issue_type)
         self.add_item(self.description)
 
-    async def on_submit(self, interaction: discord.Rsp if hasattr(discord, 'Rsp') else discord.Interaction):
+    async def on_submit(self, interaction: discord.Interaction):
         os.makedirs(REPORTS_DIR, exist_ok=True)
         safe_name = "".join(c if c.isalnum() else "_" for c in self.product_name)
         file_path = os.path.join(REPORTS_DIR, f"{safe_name}.md")
@@ -127,7 +145,7 @@ async def get_reports(ctx):
         if os.path.isfile(file_path):
             await ctx.send(file=discord.File(file_path))
 
-@bot.bot_maker if hasattr(bot, 'bot_maker') else bot.event
+@bot.event
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
