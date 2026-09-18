@@ -70,7 +70,7 @@ class BugReportModal(discord.ui.Modal):
         with open(file_path, "a", encoding="utf-8") as f:
             f.write(report_content)
 
-        # --- ΑΥΤΟΜΑΤΗ ΑΠΟΣΤΟΛΗ ΣΤΟ ΚΑΝΑΛΙ LOGS ---
+        # --- ΟΙ ΑΝΑΦΟΡΕΣ ΠΑΝΕ ΣΤΟ BUG-LOGS ---
         if interaction.guild:
             log_channel = discord.utils.get(interaction.guild.text_channels, name="bug-logs")
             if log_channel:
@@ -84,7 +84,7 @@ class BugReportModal(discord.ui.Modal):
                 embed.add_field(name="Description", value=self.description.value, inline=False)
                 
                 await log_channel.send(embed=embed, file=discord.File(file_path))
-        # ------------------------------------------
+        # ---------------------------------------
 
         await interaction.response.send_message(
             "✅ Your report has been successfully recorded! Thank you.", ephemeral=True
@@ -159,9 +159,9 @@ class ProductSelectView(discord.ui.View):
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     
-    # --- ΑΥΤΟΜΑΤΗ ΑΠΟΣΤΟΛΗ ΜΕΝΟΥ ΣΤΟ BUG-LOGS ΜΕ ΤΗΝ ΕΚΚΙΝΗΣΗ ---
+    # --- ΤΟ ΜΕΝΟΥ ΑΥΤΟΜΑΤΑ ΣΤΟ BUG-REPORTS ---
     for guild in bot.guilds:
-        channel = discord.utils.get(guild.text_channels, name="bug-logs")
+        channel = discord.utils.get(guild.text_channels, name="bug-reports")
         if channel:
             products = load_products()
             view = ProductSelectView(products)
